@@ -1,8 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Prompt user for the key (t for last 10 seconds, a for full MP3)
-echo Enter the key (t for last 10 seconds, a for full MP3):
+:: Prompt user for the key (t for first 10 seconds, a for full MP3)
+echo Enter the key (t for first 10 seconds, a for full MP3):
 set /p key=
 
 :: Debugging output
@@ -11,14 +11,19 @@ echo Key entered: "%key%"
 :: Prompt user for the image file path
 echo Enter the path to the image file:
 set /p image_file=
+set image_file=%image_file:"=%
 
 :: Prompt user for the audio file path
 echo Enter the path to the audio file:
 set /p audio_file=
 
+:: Remove any extra quotes from the input
+set audio_file=%audio_file:"=%
+
 :: Prompt user for the output video file name
 echo Enter the output video file name:
 set /p output_file=
+set output_file=%output_file:"=%
 
 :: Check if the image file exists
 if not exist "%image_file%" (
@@ -120,7 +125,7 @@ echo Output video file: "%output_file%"
 :: Process based on the key
 if /i "%key%"=="t" (
     echo Key is 't'
-    echo Processing with last 10 seconds of audio...
+    echo Processing with first 10 seconds of audio...
     ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 -t 10 "%output_file%"
 
 ) else if /i "%key%"=="a" (
@@ -129,7 +134,7 @@ if /i "%key%"=="t" (
     ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 "%output_file%"
 
 ) else (
-    echo Invalid key. Please enter 't' for last 10 seconds or 'a' for full MP3.
+    echo Invalid key. Please enter 't' for first 10 seconds or 'a' for full MP3.
     exit /b 1
 )
 
