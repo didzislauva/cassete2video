@@ -1,9 +1,19 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Prompt user for the key (t for first 10 seconds, a for full MP3)
+:askForKey
 echo Enter the key (t for first 10 seconds, a for full MP3):
-set /p key=
+set /p key=""
+
+if "%key%"=="t" (
+    echo You selected t: first 10 seconds.
+) else if "%key%"=="a" (
+    echo You selected a: full MP3.
+) else (
+    echo Invalid key. Please enter 't' or 'a'.
+    goto askForKey
+)
+
 
 :: Debugging output
 echo Key entered: "%key%"
@@ -24,6 +34,13 @@ set audio_file=%audio_file:"=%
 echo Enter the output video file name:
 set /p output_file=
 set output_file=%output_file:"=%
+
+echo %output_file% | findstr /r "\." >nul
+if %errorlevel% neq 0 (
+    :: If no extension is found, append ".mp4"
+    set output_file=%output_file%.mp4
+)
+echo The output file name is: %output_file%
 
 :: Check if the image file exists
 if not exist "%image_file%" (
