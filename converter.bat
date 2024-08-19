@@ -32,14 +32,17 @@ if not exist "%audio_file%" (
     exit /b 1
 )
 
-:: Get the image width using ffprobe
+:: Get the image width and height using ffprobe and store them in separate temporary files
 ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "%image_file%" > width.txt
+ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "%image_file%" > height.txt
 
-:: Read the width from the temporary file
+:: Read the width and height from the temporary files
 set /p width=<width.txt
+set /p height=<height.txt
 
-:: Clean up temporary file
+:: Clean up temporary files
 del width.txt
+del height.txt
 
 :: Check if ffprobe was successful
 if "%width%"=="" (
@@ -48,15 +51,37 @@ if "%width%"=="" (
     exit /b 1
 )
 
-:: Display the width
+if "%height%"=="" (
+    echo Failed to get the image height.
+    pause
+    exit /b 1
+)
+
+:: Display the width and height
 echo Width: %width%
+echo Height: %height%
 
 :: Check if width is divisible by 2
-set /a result=width %% 2
+set /a width_result=width %% 2
 
-if !result! neq 0 (
+:: Check if height is divisible by 2
+set /a height_result=height %% 2
+
+:: Initialize cropping flag
+set crop_needed=0
+
+if !width_result! neq 0 (
     echo Width is not divisible by 2
-    echo Cropping 1 pixel from the width to make it divisible by 2...
+    set /a crop_needed=1
+)
+
+if !height_result! neq 0 (
+    echo Height is not divisible by 2
+    set /a crop_needed=1
+)
+
+if !crop_needed! neq 0 (
+    echo Cropping 1 pixel from the width or height to make it divisible by 2...
 
     :: Extract only the filename and extension from the input file
     for %%f in ("%image_file%") do (
@@ -72,8 +97,8 @@ if !result! neq 0 (
     echo Input file: "%image_file%"
     echo Output file: "!cropped_image!"
 
-    :: Crop the image to remove 1 pixel from the right
-    ffmpeg -i "%image_file%" -vf "crop=iw-1:ih:0:0" "!cropped_image!"
+    :: Crop the image to remove 1 pixel if needed
+    ffmpeg -i "%image_file%" -vf "crop=iw-mod(iw\,2):ih-mod(ih\,2)" "!cropped_image!"
 
     :: Check if cropping was successful
     if exist "!cropped_image!" (
