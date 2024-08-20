@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 :askForKey
-echo Enter the key (t for first 10 seconds, a for full MP3, s for split file):
+echo Enter the key (t for first 10 seconds, a for full MP3, s for split file, m for merge files in filelist list.txt):
 set /p key=""
 
 if "%key%"=="t" (
@@ -12,6 +12,9 @@ if "%key%"=="t" (
 ) else if "%key%"=="s" (
     echo You selected a: Split file.
 	goto splitFile
+) else if "%key%"=="m" (
+    echo You selected a: Merge files from list.
+	goto mergeFiles
 ) else (
     echo Invalid key. Please enter 't' or 'a'.
     goto askForKey
@@ -196,6 +199,24 @@ echo Formatted time: !time!
 
 ffmpeg -i "%input_file%" -t %time% -c copy "1_%input_file%"
 ffmpeg -i "%input_file%" -ss %time% -c copy "2_%input_file%"
+
+exit /b 1
+
+:mergeFiles
+
+echo Enter the output video file name:
+set /p output_file=
+set output_file=%output_file:"=%
+
+echo %output_file% | findstr /r "\." >nul
+if %errorlevel% neq 0 (
+    :: If no extension is found, append ".mp4"
+    set output_file=%output_file%.mp4
+)
+echo The output file name is: %output_file%
+
+ffmpeg -f concat -safe 0 -i list.txt -c copy "%output_file%"
+
 exit /b 1
 
 endlocal
