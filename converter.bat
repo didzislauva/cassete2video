@@ -2,18 +2,20 @@
 setlocal enabledelayedexpansion
 
 :askForKey
-echo Enter the key (t for first 10 seconds, a for full MP3):
+echo Enter the key (t for first 10 seconds, a for full MP3, s for split file):
 set /p key=""
 
 if "%key%"=="t" (
-    echo You selected t: first 10 seconds.
+    echo You selected t: First 10 seconds.
 ) else if "%key%"=="a" (
-    echo You selected a: full MP3.
+    echo You selected a: Full MP3.
+) else if "%key%"=="s" (
+    echo You selected a: Split file.
+	goto splitFile
 ) else (
     echo Invalid key. Please enter 't' or 'a'.
     goto askForKey
 )
-
 
 :: Debugging output
 echo Key entered: "%key%"
@@ -41,6 +43,7 @@ if %errorlevel% neq 0 (
     set output_file=%output_file%.mp4
 )
 echo The output file name is: %output_file%
+
 
 :: Check if the image file exists
 if not exist "%image_file%" (
@@ -144,16 +147,56 @@ if /i "%key%"=="t" (
     echo Key is 't'
     echo Processing with first 10 seconds of audio...
     ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 -t 10 "%output_file%"
-
+	exit /b 1
 ) else if /i "%key%"=="a" (
     echo Key is 'a'
     echo Processing with full audio...
     ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 "%output_file%"
-
-) else (
-    echo Invalid key. Please enter 't' for first 10 seconds or 'a' for full MP3.
-    exit /b 1
+	exit /b 1
 )
+
+:splitFile
+echo Enter the input filename (with extension):
+set /p input_file=
+
+
+echo Enter the duration (format: HH:MM:SS):
+set /p time=
+
+
+rem Split the input into parts based on colons
+for /F "tokens=1,2,3 delims=:" %%a in ("%time%") do (
+    set part1=%%a
+    set part2=%%b
+    set part3=%%c
+)
+
+rem Determine the format and adjust accordingly
+if defined part3 (
+    rem Input is already in hh:mm:ss format, so just ensure it's correctly formatted
+    set hours=!part1!
+    set minutes=!part2!
+    set seconds=!part3!
+) else (
+    rem Input is in mm:ss format, so add leading zeros for hours
+    set hours=00
+    set minutes=!part1!
+    set seconds=!part2!
+)
+
+
+rem Ensure all parts are correctly formatted
+if !minutes! lss 10 if not "!minutes:~0,1!"=="0" set minutes=0!minutes!
+if !seconds! lss 10 if not "!seconds:~0,1!"=="0" set seconds=0!seconds!
+if !hours! lss 10 if not "!hours:~0,1!"=="0" set hours=0!hours!
+
+rem Output the result in hh:mm:ss format
+set time=!hours!:!minutes!:!seconds!
+echo Formatted time: !time!
+
+ffmpeg -i "%input_file%" -t %time% -c copy "1_%input_file%"
+ffmpeg -i "%input_file%" -ss %time% -c copy "2_%input_file%"
+exit /b 1
 
 endlocal
 pause
