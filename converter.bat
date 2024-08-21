@@ -136,12 +136,41 @@ if not exist "%image_file%" (
     exit /b 1
 )
 
+:: Check if the file matches any of the specified extensions
+set "valid=0"
+for %%x in (jpg jpeg png gif bmp tiff tif) do (
+    if /i "!image_file:~-4!"==".%%x" set "valid=1"
+    if /i "!image_file:~-5!"==".%%x" set "valid=1"
+)
+
+if "%valid%"=="0" (
+    echo The file is %colorRed%not a valid image%colorReset% file.
+	goto loopimageq
+)
+
+:loopaudioq
 :: Prompt user for the audio file path
 echo Enter the full %colorGreen%audio%colorReset% file name (with extension):
 set /p audio_file=
-
-:: Remove any extra quotes from the input
 set audio_file=%audio_file:"=%
+echo.
+:: Check if the image file exists
+if not exist "%audio_file%" (
+    echo The image file does not exist.
+	goto loopimageq
+    exit /b 1
+)
+
+:: Check if the file matches any of the specified extensions
+set "valid=0"
+for %%x in (mp3 wav wma aac flac ogg m4a) do (
+    if /i "!audio_file:~-4!"==".%%x" set "valid=1"
+)
+
+if "%valid%"=="0" (
+    echo The file is %colorRed%not a valid audio%colorReset% file.
+	goto loopaudioq
+)
 
 :: Prompt user for the output video file name
 echo Enter the %colorCyan%output video%colorReset% file name (if no extension present, default is %colorCyan%mp4%colorReset%):
@@ -391,11 +420,11 @@ if "%errorFound%"=="true" (
 ) else (
     echo %colorGreen%All lines match the expected format.%colorReset%
 :editLoop
-	set /p keys="To %colorYellow%merge%colorReset% existing, press %colorYellow%c%colorReset%. To %colorGreen%edit%colorReset% list.txt file, press %colorGreen%e%colorReset% :"
+	set /p keys="To %colorYellow%merge%colorReset% existing, press %colorYellow%m%colorReset%. To %colorGreen%edit%colorReset% list.txt file, press %colorGreen%e%colorReset% :"
 	
 	if "!keys!"=="e" (
 		goto prepareMergeFile
-	) else if "!keys!"=="c" (
+	) else if "!keys!"=="m" (
 		goto mergeFileX
 	) else (
 	goto editLoop
@@ -403,10 +432,7 @@ if "%errorFound%"=="true" (
 )
 
 
-
-
 :prepareMergeFile
-
 REM Ask the user how many inputs they want
 set /p inputCount="How %colorYellow%many%colorReset% media files do you want to merge? (Enter %colorYellow%number%colorReset% or %colorGreen%q%colorReset% to quit)"
 
@@ -422,10 +448,7 @@ if "%inputCount%"=="q" (
 REM Check if the file exists before deleting it
 if exist "%file%" (
     del "%file%"
-    echo %file% has been deleted.
-) else (
-    echo %file% does not exist.
-)
+) 
 
 REM Loop to collect inputs from the user
 :inputLoop
@@ -434,7 +457,7 @@ if !counter! leq %inputCount% (
     set /p userInput="Enter input !counter!: "
     
     if not exist "!userInput!" (
-        echo File "!userInput!" does not exist. Please enter a valid filename.
+        echo File "!userInput!" %colorRed%does not exist%colorReset%. Please enter a valid filename.
         goto fileCheck
     )
 	
@@ -444,11 +467,10 @@ if !counter! leq %inputCount% (
     goto inputLoop
 )
 
-echo All inputs have been saved to list.txt
+echo All media filenames have been saved successfully to list.txt
 
 
 :mergeFileX
-echo merging files
 ffmpeg -f concat -safe 0 -i list.txt -c copy "%output_file%"
 
 pause
