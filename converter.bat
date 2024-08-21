@@ -1,9 +1,107 @@
 @echo off
+cls
 setlocal enabledelayedexpansion
 
+REM Define the maximum length for filenames in each column
+set max_length=25
+REM ANSI color codes
+set "colorYellow=[93m"
+set "colorGreen=[92m"
+set "colorCyan=[96m"
+set "colorReset=[0m"
+set "colorRed=[31m"
+
+
+REM Create headers
+echo =======================================================================================
+echo.FILE LIST for available media work with %colorGreen%ffmpeg.exe%colorReset%               didzis@lauvadidzis.com
+echo =======================================================================================
+echo.
+echo %colorYellow%Images:%colorReset%                      %colorGreen%Audio:%colorReset%                       %colorCyan%Video:%colorReset%
+echo =======================================================================================
+echo.
+
+REM Initialize counters
+set img_count=0
+set aud_count=0
+set vid_count=0
+
+REM Arrays to store filenames
+for %%i in (*.jpg *.jpeg *.png *.gif *.bmp *.tiff *.tif) do (
+    set /a img_count+=1
+    set "img[!img_count!]=%%i"
+)
+
+for %%i in (*.mp3 *.wav *.wma *.aac *.flac *.ogg *.m4a) do (
+    set /a aud_count+=1
+    set "aud[!aud_count!]=%%i"
+)
+
+for %%i in (*.mp4 *.avi *.mkv *.mov *.wmv *.flv *.mpeg *.mpg *.webm) do (
+    set /a vid_count+=1
+    set "vid[!vid_count!]=%%i"
+)
+
+REM Find the max count to determine loop iterations
+set max_count=%img_count%
+if %aud_count% gtr %max_count% set max_count=%aud_count%
+if %vid_count% gtr %max_count% set max_count=%vid_count%
+
+REM Print the table
+for /L %%i in (1,1,%max_count%) do (
+    set "img_display="
+    set "aud_display="
+    set "vid_display="
+
+    REM Handle truncation and padding within the loop only if variables are defined
+    if defined img[%%i] (
+        set "img_display=!img[%%i]!"
+        if not "!img_display:~%max_length%,1!"=="" (
+            set "img_display=!img_display:~0,%max_length%!...!"
+        )
+        set "img_display=!img_display:~0,%max_length%!"
+    )
+
+    if defined aud[%%i] (
+        set "aud_display=!aud[%%i]!"
+        if not "!aud_display:~%max_length%,1!"=="" (
+            set "aud_display=!aud_display:~0,%max_length%!...!"
+        )
+        set "aud_display=!aud_display:~0,%max_length%!"
+    )
+
+    if defined vid[%%i] (
+        set "vid_display=!vid[%%i]!"
+        if not "!vid_display:~%max_length%,1!"=="" (
+            set "vid_display=!vid_display:~0,%max_length%!...!"
+        )
+        set "vid_display=!vid_display:~0,%max_length%!"
+    )
+
+    REM Pad each column to align properly
+    set "img_display=!img_display!                                             "
+    set "aud_display=!aud_display!                                             "
+    set "vid_display=!vid_display!                                             "
+
+    REM Print the row even if one or more columns are empty
+    echo !img_display:~0,%max_length%!    !aud_display:~0,%max_length%!    !vid_display:~0,%max_length%!
+)
+echo.
+echo =======================================================================================
+echo.
+echo.
+
 :askForKey
-echo Enter the key (t for first 10 seconds, a for full MP3, s for split file, m for merge files in filelist list.txt):
-set /p key=""
+echo Possible keys to proceed:
+echo.
+echo %colorYellow%t%colorReset%: for first 10 seconds,
+echo %colorCyan%a%colorReset%: for full MP3 to video, 
+echo %colorYellow%s%colorReset%: for split media file, 
+echo %colorCyan%m%colorReset%: for merge media files in filelist %colorCyan%list.txt%colorReset%
+echo %colorYellow%q%colorReset%: for quit.
+echo.
+
+set /p key="Enter your choice: "
 
 if "%key%"=="t" (
     echo You selected t: First 10 seconds.
@@ -15,30 +113,33 @@ if "%key%"=="t" (
 ) else if "%key%"=="m" (
     echo You selected a: Merge files from list.
 	goto mergeFiles
+) else if "%key%"=="q" (
+    echo Exiting.
+	pause
+	exit /b 1
 ) else (
     echo Invalid key. Please enter 't' or 'a'.
     goto askForKey
 )
 
-:: Debugging output
-echo Key entered: "%key%"
-
 :: Prompt user for the image file path
-echo Enter the path to the image file:
+echo Enter the full %colorYellow%image%colorReset% file name (with extension. TAB key completes the filename):
 set /p image_file=
 set image_file=%image_file:"=%
+echo.
 
 :: Prompt user for the audio file path
-echo Enter the path to the audio file:
+echo Enter the full %colorGreen%audio%colorReset% file name (with extension):
 set /p audio_file=
 
 :: Remove any extra quotes from the input
 set audio_file=%audio_file:"=%
 
 :: Prompt user for the output video file name
-echo Enter the output video file name:
+echo Enter the %colorCyan%output video%colorReset% file name (if no extension present, default is %colorCyan%mp4%colorReset%):
 set /p output_file=
 set output_file=%output_file:"=%
+
 
 echo %output_file% | findstr /r "\." >nul
 if %errorlevel% neq 0 (
@@ -162,16 +263,26 @@ if /i "%key%"=="t" (
 echo Enter the input filename (with extension):
 set /p input_file=
 
-
-echo Enter the duration (format: HH:MM:SS):
+:chooseTime
+echo Enter the duration (format: HH:MM:SS or MM:SS):
 set /p time=
 
-
+if "%time%"=="q" (
+    echo Exiting
+	pause
+	exit /b 1
+) 
+	
 rem Split the input into parts based on colons
 for /F "tokens=1,2,3 delims=:" %%a in ("%time%") do (
     set part1=%%a
     set part2=%%b
     set part3=%%c
+)
+
+if not defined part2 (
+	echo %colorRed%Not proper timecode%colorReset%
+	goto chooseTime
 )
 
 rem Determine the format and adjust accordingly
