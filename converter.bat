@@ -9,7 +9,7 @@ set "colorYellow=[93m"
 set "colorGreen=[92m"
 set "colorCyan=[96m"
 set "colorReset=[0m"
-set "colorRed=[31m"
+set "colorRed=[91m"
 
 
 REM Create headers
@@ -123,10 +123,18 @@ if "%key%"=="t" (
 )
 
 :: Prompt user for the image file path
+:loopimageq
 echo Enter the full %colorYellow%image%colorReset% file name (with extension. TAB key completes the filename):
 set /p image_file=
 set image_file=%image_file:"=%
 echo.
+
+:: Check if the image file exists
+if not exist "%image_file%" (
+    echo The image file does not exist.
+	goto loopimageq
+    exit /b 1
+)
 
 :: Prompt user for the audio file path
 echo Enter the full %colorGreen%audio%colorReset% file name (with extension):
@@ -146,14 +154,10 @@ if %errorlevel% neq 0 (
     :: If no extension is found, append ".mp4"
     set output_file=%output_file%.mp4
 )
-echo The output file name is: %output_file%
+echo.
 
 
-:: Check if the image file exists
-if not exist "%image_file%" (
-    echo The image file does not exist.
-    exit /b 1
-)
+
 
 :: Check if the audio file exists
 if not exist "%audio_file%" (
@@ -315,7 +319,7 @@ exit /b 1
 
 :mergeFiles
 
-echo Enter the output video file name:
+echo Enter the %colorGreen%out%colorCyan%put%colorReset% media file name:
 set /p output_file=
 set output_file=%output_file:"=%
 
@@ -324,7 +328,7 @@ if %errorlevel% neq 0 (
     :: If no extension is found, append ".mp4"
     set output_file=%output_file%.mp4
 )
-echo The output file name is: %output_file%
+echo The %colorGreen%out%colorCyan%put%colorReset% file name is: %output_file%
 
 
 REM Path to the file to check
@@ -348,17 +352,16 @@ if exist "%file%" (
         echo The file "%file%" has !lineCount! lines.
     )
 ) else (
-    echo The file "%file%" does not exist.
+    echo %colorRed%The file "%file%" does not exist.%colorReset%
 	
-	set /p keys="To continue and create file with filenames press c. Press q to quit: "
+	set /p keys="To continue and create file with filenames press %colorYellow%c%colorReset%. Press %colorRed%q%colorReset% to quit: "
 	
     if "!keys!"=="q" (
 		echo exiting
 		pause
 		exit /b 1
 	) else if "!keys!"=="c" (
-		echo creating file
-		echo merging
+		echo.
 		goto prepareMergeFile
 	)
 )
@@ -382,13 +385,13 @@ for /f "usebackq delims=" %%a in ("%file%") do (
 echo.
 REM Final message after processing all lines
 if "%errorFound%"=="true" (
-    echo Some lines did not match the expected format.
+    echo %colorRed%Some lines did not match the expected format.%colorReset%
 	pause
 	exit /b 1
 ) else (
-    echo All lines match the expected format.
+    echo %colorGreen%All lines match the expected format.%colorReset%
 :editLoop
-	set /p keys="To merge existing, press c. To edit list.txt file, press e :"
+	set /p keys="To %colorYellow%merge%colorReset% existing, press %colorYellow%c%colorReset%. To %colorGreen%edit%colorReset% list.txt file, press %colorGreen%e%colorReset% :"
 	
 	if "!keys!"=="e" (
 		goto prepareMergeFile
@@ -405,7 +408,7 @@ if "%errorFound%"=="true" (
 :prepareMergeFile
 
 REM Ask the user how many inputs they want
-set /p inputCount="How many media files do you want to merge? (Enter number or q to quit)"
+set /p inputCount="How %colorYellow%many%colorReset% media files do you want to merge? (Enter %colorYellow%number%colorReset% or %colorGreen%q%colorReset% to quit)"
 
 REM Initialize a counter
 set "counter=1"
@@ -427,7 +430,15 @@ if exist "%file%" (
 REM Loop to collect inputs from the user
 :inputLoop
 if !counter! leq %inputCount% (
+    :fileCheck
     set /p userInput="Enter input !counter!: "
+    
+    if not exist "!userInput!" (
+        echo File "!userInput!" does not exist. Please enter a valid filename.
+        goto fileCheck
+    )
+	
+	
     echo file '!userInput!' >> %file%
     set /a counter+=1
     goto inputLoop
@@ -440,7 +451,6 @@ echo All inputs have been saved to list.txt
 echo merging files
 ffmpeg -f concat -safe 0 -i list.txt -c copy "%output_file%"
 
-exit /b 1
-
-endlocal
 pause
+exit /b 1
+endlocal
