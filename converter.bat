@@ -1,5 +1,4 @@
 @echo off
-cls
 setlocal enabledelayedexpansion
 
 REM Define the maximum length for filenames in each column
@@ -11,7 +10,8 @@ set "colorCyan=[96m"
 set "colorReset=[0m"
 set "colorRed=[91m"
 
-
+:start
+cls
 REM Create headers
 echo =======================================================================================
 echo.FILE LIST for available media work with %colorGreen%ffmpeg.exe%colorReset%               didzis@lauvadidzis.com
@@ -94,11 +94,14 @@ echo.
 :askForKey
 echo Possible keys to proceed:
 echo.
-echo %colorYellow%t%colorReset%: for first 10 seconds,
-echo %colorCyan%a%colorReset%: for full MP3 to video, 
-echo %colorYellow%s%colorReset%: for split media file, 
-echo %colorCyan%m%colorReset%: for merge media files in filelist %colorCyan%list.txt%colorReset%
-echo %colorYellow%q%colorReset%: for quit.
+echo %colorYellow%t %colorReset%: first 10 seconds,
+echo %colorCyan%a %colorReset%: full MP3 to video, 
+echo %colorYellow%s %colorReset%: split media file, 
+echo %colorCyan%m %colorReset%: merge media files in filelist %colorCyan%list.txt%colorReset%,
+echo %colorYellow%te%colorReset%: trim the end of the media files from certain timecode,
+echo %colorCyan%tb%colorReset%: trim the beginning of the media files from certain timecode,
+echo %colorYellow%ss%colorReset%: split and swap media at certain timecode,
+echo %colorCyan%q %colorReset%: quit.
 echo.
 
 set /p key="Enter your choice: "
@@ -113,6 +116,15 @@ if "%key%"=="t" (
 ) else if "%key%"=="m" (
     echo You selected a: Merge files from list.
 	goto mergeFiles
+) else if "%key%"=="te" (
+    echo You selected te: Trim end in file.
+	goto splitFile
+) else if "%key%"=="tb" (
+    echo You selected tb: Trim beginning in file.
+	goto splitFile
+) else if "%key%"=="ss" (
+    echo You selected ss: Split, swap and merge.
+	goto splitFile
 ) else if "%key%"=="q" (
     echo Exiting.
 	pause
@@ -284,20 +296,39 @@ if /i "%key%"=="t" (
     echo Key is 't'
     echo Processing with first 10 seconds of audio...
     ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 -t 10 "%output_file%"
-	exit /b 1
+	
+	goto Prompt
+
 ) else if /i "%key%"=="a" (
     echo Key is 'a'
     echo Processing with full audio...
     ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 "%output_file%"
-	exit /b 1
+	goto Prompt
 )
 
 :splitFile
+echo.
 echo Enter the input filename (with extension):
 set /p input_file=
 
+
+for %%a in ("%input_file%") do (
+		set name=%%~na
+		set ext=%%~xa
+	)
+
+
+for %%b in (.mp4 .mkv .avi .mov .wmv .flv .m4v) do (
+    if /I "%ext%"=="%%b" set type=video
+)
+
+for %%b in (.mp3 .wav .flac .aac .ogg .m4a .wma) do (
+    if /I "%ext%"=="%%b" set type=audio
+)
+
+
 :chooseTime
-echo Enter the duration (format: HH:MM:SS or MM:SS):
+echo Enter the timecode (format: HH:MM:SS or MM:SS):
 set /p time=
 
 if "%time%"=="q" (
@@ -341,10 +372,50 @@ rem Output the result in hh:mm:ss format
 set time=!hours!:!minutes!:!seconds!
 echo Formatted time: !time!
 
-ffmpeg -i "%input_file%" -t %time% -c copy "1_%input_file%"
-ffmpeg -i "%input_file%" -ss %time% -c copy "2_%input_file%"
+if "!key!"=="te" (
+    echo You selected trim
+	set output_file=%name%_trimmed_end%ext%
+	ffmpeg -i "%input_file%" -t %time% -c copy "!output_file!"
+	goto Prompt
+) else if "!key!"=="tb" (
+    echo You selected trim
+	set output_file=%name%_trimmed_beginning%ext%
+	ffmpeg -i "%input_file%" -ss %time% -c:v libx264 -preset ultrafast -c:a copy "!output_file!"
+	goto Prompt
+) else if "!key!"=="s" (
+    echo You selected split
+	set output_file=%name%_A%ext%
+	ffmpeg -i "%input_file%" -t %time% -c copy "!output_file!"
+	set output_file=%name%_B%ext%
+	ffmpeg -i "%input_file%" -ss %time% -c:v libx264 -preset ultrafast -c:a copy !output_file!"
+	goto Prompt
 
-exit /b 1
+) else if "!key!"=="ss" (	
+	if "!type!"=="audio" (
+		ffmpeg -i "%input_file%" -t %time% -c copy "%name%_A%ext%"
+		ffmpeg -i "%input_file%" -ss %time% -c copy "%name%_B%ext%"	
+		
+		ffmpeg -i "concat:%name%_B%ext%|%name%_A%ext%" -acodec copy %name%_swapped%ext%
+		del %name%_B%ext%
+		del %name%_A%ext%
+	)	else (
+	
+		ffmpeg -i "%input_file%" -t %time% -c:v libx264 -preset ultrafast -c:a copy "%name%_A%ext%"
+		ffmpeg -i "%input_file%" -ss %time% -c:v libx264 -preset ultrafast -c:a copy "%name%_B%ext%"
+		
+		ffmpeg -i %name%_B%ext% -i %name%_A%ext% -filter_complex "[0:0][0:1][1:0][1:1]concat=n=2:v=1:a=1[outv][outa]" -map "[outv]" -map "[outa]" %name%_swapped%ext%
+		del %name%_B%ext%
+		del %name%_A%ext%
+	)
+	
+	echo Split and swap successful. !name!_swapped!ext! created.
+	
+	
+	goto Prompt
+)
+
+
+
 
 :mergeFiles
 
@@ -473,6 +544,21 @@ echo All media filenames have been saved successfully to list.txt
 :mergeFileX
 ffmpeg -f concat -safe 0 -i list.txt -c copy "%output_file%"
 
-pause
-exit /b 1
+
+:Prompt
+	echo.
+	echo.
+	echo Do you want to restart (%colorYellow%r%colorReset%) again or quit (%colorRed%q%colorReset%)?
+	set /p "choice=Enter your choice: "
+
+	if /i "%choice%"=="r" (
+		goto start
+	) else if /i "%choice%"=="q" (
+		exit
+	) else (
+		echo Invalid choice! Please enter "s" or "q".
+		pause
+		goto Prompt
+	)
+
 endlocal
