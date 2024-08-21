@@ -326,6 +326,118 @@ if %errorlevel% neq 0 (
 )
 echo The output file name is: %output_file%
 
+
+REM Path to the file to check
+set "file=list.txt"
+set "errorFound=false"
+
+REM Check if the file exists first
+if exist "%file%" (
+    REM Initialize line count variable
+    set "lineCount=0"
+
+    REM Loop through each line in the file to count the lines
+    for /f "usebackq delims=" %%A in ("%file%") do (
+        set /a lineCount=!lineCount!+1
+    )
+
+    REM Check if the line count is zero
+    if !lineCount! equ 0 (
+        echo The file "%file%" is empty.
+    ) else (
+        echo The file "%file%" has !lineCount! lines.
+    )
+) else (
+    echo The file "%file%" does not exist.
+	
+	set /p keys="To continue and create file with filenames press c. Press q to quit: "
+	
+    if "!keys!"=="q" (
+		echo exiting
+		pause
+		exit /b 1
+	) else if "!keys!"=="c" (
+		echo creating file
+		echo merging
+		goto prepareMergeFile
+	)
+)
+REM Flag to track if any errors are found
+
+:lineLoop
+REM Loop through each line in the file
+echo.
+echo Checking file list.txt
+for /f "usebackq delims=" %%a in ("%file%") do (
+    REM Print the current line
+    REM Check if the line matches the pattern using findstr
+    echo %%a | findstr /r "^file '.*\.mp3'$" >nul
+    if errorlevel 1 (
+        echo %colorRed%ERROR%colorReset%: %%a
+        set "errorFound=true"
+    ) else (
+        echo %colorGreen%OK%colorReset%   : %%a
+    )
+)
+echo.
+REM Final message after processing all lines
+if "%errorFound%"=="true" (
+    echo Some lines did not match the expected format.
+	pause
+	exit /b 1
+) else (
+    echo All lines match the expected format.
+:editLoop
+	set /p keys="To merge existing, press c. To edit list.txt file, press e :"
+	
+	if "!keys!"=="e" (
+		goto prepareMergeFile
+	) else if "!keys!"=="c" (
+		goto mergeFileX
+	) else (
+	goto editLoop
+	)
+)
+
+
+
+
+:prepareMergeFile
+
+REM Ask the user how many inputs they want
+set /p inputCount="How many media files do you want to merge? (Enter number or q to quit)"
+
+REM Initialize a counter
+set "counter=1"
+
+if "%inputCount%"=="q" (
+    echo Exiting.
+	pause
+	exit /b 1
+)
+
+REM Check if the file exists before deleting it
+if exist "%file%" (
+    del "%file%"
+    echo %file% has been deleted.
+) else (
+    echo %file% does not exist.
+)
+
+REM Loop to collect inputs from the user
+:inputLoop
+if !counter! leq %inputCount% (
+    set /p userInput="Enter input !counter!: "
+    echo file '!userInput!' >> %file%
+    set /a counter+=1
+    goto inputLoop
+)
+
+echo All inputs have been saved to list.txt
+
+
+:mergeFileX
+echo merging files
 ffmpeg -f concat -safe 0 -i list.txt -c copy "%output_file%"
 
 exit /b 1
