@@ -3,12 +3,28 @@ setlocal enabledelayedexpansion
 
 REM Define the maximum length for filenames in each column
 set max_length=25
-REM ANSI color codes
-set "colorYellow=[93m"
-set "colorGreen=[92m"
-set "colorCyan=[96m"
-set "colorReset=[0m"
-set "colorRed=[91m"
+
+
+for /f "tokens=4-5 delims=[.] " %%i in ('ver') do (
+    set version_major=%%i
+    set version_minor=%%j
+)
+
+if "%version_major%.%version_minor%"=="6.1" (
+    REM echo Windows 7 detected. ANSI colors not supported.
+	set "colorYellow"=""
+	set "colorGreen"=""
+	set "colorCyan"=""
+	set "colorReset"=""
+	set "colorRed"=""
+) else (
+    REM echo This is not Windows 7. Hopefully ANSI colors can be used
+	set "colorYellow=[93m"
+	set "colorGreen=[92m"
+	set "colorCyan=[96m"
+	set "colorReset=[0m"
+	set "colorRed=[91m"
+)
 
 :start
 cls
@@ -94,8 +110,9 @@ echo.
 :askForKey
 echo Possible keys to proceed:
 echo.
-echo %colorYellow%t %colorReset%: first 10 seconds,
-echo %colorCyan%a %colorReset%: full MP3 to video, 
+echo %colorCyan%t %colorReset%: first 10 seconds (with audio normalization),
+echo %colorYellow%a %colorReset%: full MP3 to video (with sound normalization), 
+echo %colorCyan%af %colorReset%: fast full MP3 to video (no sound normalization), 
 echo %colorYellow%s %colorReset%: split media file, 
 echo %colorCyan%m %colorReset%: merge media files in filelist %colorCyan%list.txt%colorReset%,
 echo %colorYellow%te%colorReset%: trim the end of the media files from certain timecode,
@@ -109,7 +126,9 @@ set /p key="Enter your choice: "
 if "%key%"=="t" (
     echo You selected t: First 10 seconds.
 ) else if "%key%"=="a" (
-    echo You selected a: Full MP3.
+    echo You selected a: Full MP3. With sound normalization filter.
+) else if "%key%"=="af" (
+    echo You selected a: Fast Full MP3. Without sound normalization.
 ) else if "%key%"=="s" (
     echo You selected a: Split file.
 	goto splitFile
@@ -295,13 +314,20 @@ echo Output video file: "%output_file%"
 if /i "%key%"=="t" (
     echo Key is 't'
     echo Processing with first 10 seconds of audio...
-    ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 -t 10 "%output_file%"
+	
+    ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -af "loudnorm=I=-16:TP=-1.5:LRA=11" -shortest -r 1 -t 10 "%output_file%"
 	
 	goto Prompt
 
 ) else if /i "%key%"=="a" (
     echo Key is 'a'
-    echo Processing with full audio...
+    echo Processing with full "normalize" audio...
+    ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -af "loudnorm=I=-16:TP=-1.5:LRA=11" -shortest -r 1 "%output_file%"
+	goto Prompt
+	
+) else if /i "%key%"=="af" (
+    echo Key is 'a'
+    echo Processing with full "copy" audio...
     ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 "%output_file%"
 	goto Prompt
 )
