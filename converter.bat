@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
-
+REM setting the window size according to gui
+mode con: cols=88 lines=40
 REM Define the maximum length for filenames in each column
 set max_length=25
 
@@ -28,13 +29,36 @@ if "%version_major%.%version_minor%"=="6.1" (
 
 :start
 cls
-REM Create headers
+:askForKey
 echo =======================================================================================
-echo.FILE LIST for available media work with %colorGreen%ffmpeg.exe%colorReset%               didzis@lauvadidzis.com
+echo.Program    available media work with                             didzis@lauvadidzis.com
 echo =======================================================================================
 echo.
-echo %colorYellow%Images:%colorReset%                      %colorGreen%Audio:%colorReset%                       %colorCyan%Video:%colorReset%
+echo Possible keys to proceed:
+echo.
+echo %colorCyan%t %colorReset%: first 10 seconds (with audio normalization),
+echo %colorYellow%a %colorReset%: full MP3 to video (with sound normalization), 
+echo %colorCyan%af%colorReset%: fast full MP3 to video (no sound normalization), 
+echo %colorYellow%s %colorReset%: split media file, 
+echo %colorCyan%m %colorReset%: merge media files in filelist %colorCyan%list.txt%colorReset%,
+echo %colorYellow%te%colorReset%: trim the end of the media files from certain timecode,
+echo %colorCyan%tb%colorReset%: trim the beginning of the media files from certain timecode,
+echo %colorYellow%ss%colorReset%: split and swap media at certain timecode,
+echo %colorCyan%na%colorReset%: extract and normalize audio stream,
+echo %colorYellow%ex%colorReset%: extract a portion of media file,
+echo %colorCyan%r%colorReset% : refresh the file list,
+echo %colorCyan%q %colorReset%: quit.
+echo.
+
+
+
+REM Create headers
+
 echo =======================================================================================
+echo File list for available media work with %colorGreen%ffmpeg.exe%colorReset%
+echo.
+echo %colorYellow%Images:%colorReset%                      %colorGreen%Audio:%colorReset%                       %colorCyan%Video:%colorReset%
+echo _______________________________________________________________________________________
 echo.
 
 REM Initialize counters
@@ -107,22 +131,7 @@ echo ===========================================================================
 echo.
 echo.
 
-:askForKey
-echo Possible keys to proceed:
-echo.
-echo %colorCyan%t %colorReset%: first 10 seconds (with audio normalization),
-echo %colorYellow%a %colorReset%: full MP3 to video (with sound normalization), 
-echo %colorCyan%af %colorReset%: fast full MP3 to video (no sound normalization), 
-echo %colorYellow%s %colorReset%: split media file, 
-echo %colorCyan%m %colorReset%: merge media files in filelist %colorCyan%list.txt%colorReset%,
-echo %colorYellow%te%colorReset%: trim the end of the media files from certain timecode,
-echo %colorCyan%tb%colorReset%: trim the beginning of the media files from certain timecode,
-echo %colorYellow%ss%colorReset%: split and swap media at certain timecode,
-echo %colorCyan%na%colorReset%: extract and normalize audio stream,
-echo %colorYellow%ex%colorReset%: extract a portion of media file,
-echo %colorCyan%r%colorReset%: refresh the file list,
-echo %colorCyan%q %colorReset%: quit.
-echo.
+
 
 set /p key="Enter your choice: "
 
