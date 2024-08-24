@@ -660,7 +660,7 @@ if "%key%"=="t" (
 		if /I "%ext%"=="%%b" set type=audio
 	)
 	
-	
+	set counter=1
 	:chooseBeginningTimeForExtract
 	echo Enter the timecode (format: HH:MM:SS or MM:SS):
 	set /p time=
@@ -755,9 +755,27 @@ if "%key%"=="t" (
 	if "!type!"=="audio" (
 			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c copy %name%_portion%ext%
 		)	else (
-			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c:v libx264 -preset ultrafast -c:a copy %name%_portion%ext%
+			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c:v libx264 -preset ultrafast -c:a copy %name%_portion!counter!%ext%
 		)
-	goto Prompt
+		
+	::  extract another portion?
+	echo.
+	echo.
+	echo Press e to extract another portion or 
+	echo Enter to go return to beginning or 
+	echo q to quit:
+	set /p key=
+
+	if "%key%"=="q" (
+		echo Exiting
+		pause
+		exit /b 1
+	) else if "%key%"=="e" (
+		set /a counter+=1
+		goto chooseBeginningTimeForExtract
+	) else (	
+		goto start
+	)
 
 
 :Prompt
