@@ -118,8 +118,9 @@ echo %colorCyan%m %colorReset%: merge media files in filelist %colorCyan%list.tx
 echo %colorYellow%te%colorReset%: trim the end of the media files from certain timecode,
 echo %colorCyan%tb%colorReset%: trim the beginning of the media files from certain timecode,
 echo %colorYellow%ss%colorReset%: split and swap media at certain timecode,
-echo %colorCyan%na%colorReset%: normalize audio stream,
-echo %colorYellow%r%colorReset%: refresh the file list,
+echo %colorCyan%na%colorReset%: extract and normalize audio stream,
+echo %colorYellow%ex%colorReset%: extract a portion of media file,
+echo %colorCyan%r%colorReset%: refresh the file list,
 echo %colorCyan%q %colorReset%: quit.
 echo.
 
@@ -149,6 +150,9 @@ if "%key%"=="t" (
 ) else if "%key%"=="na" (
     echo You selected na: Normalize audio.
 	goto normalizeAudio
+) else if "%key%"=="ex" (
+    echo You selected ex: Extracting a portion.
+	goto extractPortion
 ) else if "%key%"=="r" (
     echo You selected r: Refreshing the filelist.
 	goto start
@@ -612,9 +616,148 @@ if "%key%"=="t" (
 		)
 	echo ir
 	
-	ffmpeg -i "%input_file%" -af "loudnorm=I=-16:TP=-1.5:LRA=11" "%name%_norm%ext%"
+	ffmpeg -i "%input_file%" -af "loudnorm=I=-16:TP=-1.5:LRA=11" -c:a libmp3lame -b:a 128k "%name%_norm.mp3"
 	goto Prompt
 	
+
+:extractPortion
+	echo.
+	echo.
+	echo.
+	:loopNAQ
+	echo Enter the input filename (with extension):
+	set /p input_file=
+	set input_file=%input_file:"=%
+	
+	:: Check if the image file exists
+	if not exist "%input_file%" (
+		echo The media file does not exist.
+		goto loopNAQ
+		exit /b 1
+	)
+	
+	:: Check if the file matches any of the specified extensions
+	set "valid=0"
+	for %%x in (mp3 wav wma aac flac ogg m4a mp4 mkv avi mov wmv flv m4v) do (
+		if /i "!input_file:~-4!"==".%%x" set "valid=1"
+	)
+
+	if "%valid%"=="0" (
+		echo The file is %colorRed%not a valid audio%colorReset% file.
+		goto loopNAQ
+	)
+
+	for %%a in ("%input_file%") do (
+			set name=%%~na
+			set ext=%%~xa
+		)
+		
+	for %%b in (.mp4 .mkv .avi .mov .wmv .flv .m4v) do (
+		if /I "%ext%"=="%%b" set type=video
+	)
+
+	for %%b in (.mp3 .wav .flac .aac .ogg .m4a .wma) do (
+		if /I "%ext%"=="%%b" set type=audio
+	)
+	
+	
+	:chooseBeginningTimeForExtract
+	echo Enter the timecode (format: HH:MM:SS or MM:SS):
+	set /p time=
+
+	if "%time%"=="q" (
+		echo Exiting
+		pause
+		exit /b 1
+	) 
+		
+	rem Split the input into parts based on colons
+	for /F "tokens=1,2,3 delims=:" %%a in ("%time%") do (
+		set part1=%%a
+		set part2=%%b
+		set part3=%%c
+	)
+
+	if not defined part2 (
+		echo %colorRed%Not proper timecode%colorReset%
+		goto chooseBeginningTimeForExtract
+	)
+
+	rem Determine the format and adjust accordingly
+	if defined part3 (
+		rem Input is already in hh:mm:ss format, so just ensure it's correctly formatted
+		set hours=!part1!
+		set minutes=!part2!
+		set seconds=!part3!
+	) else (
+		rem Input is in mm:ss format, so add leading zeros for hours
+		set hours=00
+		set minutes=!part1!
+		set seconds=!part2!
+	)
+
+
+	rem Ensure all parts are correctly formatted
+	if !minutes! lss 10 if not "!minutes:~0,1!"=="0" set minutes=0!minutes!
+	if !seconds! lss 10 if not "!seconds:~0,1!"=="0" set seconds=0!seconds!
+	if !hours! lss 10 if not "!hours:~0,1!"=="0" set hours=0!hours!
+
+	rem Output the result in hh:mm:ss format
+	set beginningTime=!hours!:!minutes!:!seconds!
+	echo Formatted time: !beginningTime!
+	
+	
+	:chooseEndTimeForExtract
+	echo Enter the timecode (format: HH:MM:SS or MM:SS):
+	set /p time=
+
+	if "%time%"=="q" (
+		echo Exiting
+		pause
+		exit /b 1
+	) 
+		
+	rem Split the input into parts based on colons
+	for /F "tokens=1,2,3 delims=:" %%a in ("%time%") do (
+		set part1=%%a
+		set part2=%%b
+		set part3=%%c
+	)
+
+	if not defined part2 (
+		echo %colorRed%Not proper timecode%colorReset%
+		goto chooseEndTimeForExtract
+	)
+
+	rem Determine the format and adjust accordingly
+	if defined part3 (
+		rem Input is already in hh:mm:ss format, so just ensure it's correctly formatted
+		set hours=!part1!
+		set minutes=!part2!
+		set seconds=!part3!
+	) else (
+		rem Input is in mm:ss format, so add leading zeros for hours
+		set hours=00
+		set minutes=!part1!
+		set seconds=!part2!
+	)
+
+
+	rem Ensure all parts are correctly formatted
+	if !minutes! lss 10 if not "!minutes:~0,1!"=="0" set minutes=0!minutes!
+	if !seconds! lss 10 if not "!seconds:~0,1!"=="0" set seconds=0!seconds!
+	if !hours! lss 10 if not "!hours:~0,1!"=="0" set hours=0!hours!
+
+	rem Output the result in hh:mm:ss format
+	set endTime=!hours!:!minutes!:!seconds!
+	echo Formatted time: !endTime!
+	echo !type!
+	if "!type!"=="audio" (
+			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c copy %name%_portion%ext%
+		)	else (
+			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c:v libx264 -preset ultrafast -c:a copy %name%_portion%ext%
+		)
+	goto Prompt
 
 
 :Prompt
