@@ -46,7 +46,8 @@ echo %colorCyan%tb%colorReset%: trim the beginning of the media files from certa
 echo %colorYellow%ss%colorReset%: split and swap media at certain timecode,
 echo %colorCyan%na%colorReset%: extract and normalize audio stream,
 echo %colorYellow%ex%colorReset%: extract a portion of media file,
-echo %colorCyan%r%colorReset% : refresh the file list,
+echo %colorCyan%ra%colorReset%: reencode mp3,
+echo %colorYellow%r%colorReset% : refresh the file list,
 echo %colorCyan%q %colorReset%: quit.
 echo.
 
@@ -165,6 +166,9 @@ if "%key%"=="t" (
 ) else if "%key%"=="r" (
     echo You selected r: Refreshing the filelist.
 	goto start
+) else if "%key%"=="ra" (
+    echo You selected r: Refreshing the filelist.
+	goto reencodeAudio
 ) else if "%key%"=="q" (
     echo Exiting.
 	pause
@@ -350,9 +354,41 @@ if "%key%"=="t" (
 	) else if /i "%key%"=="af" (
 		echo Key is 'a'
 		echo Processing with full "copy" audio...
-		ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a copy -shortest -r 1 "%output_file%"
+		ffmpeg -loop 1 -i "%image_file%" -i "%audio_file%" -c:v libx264 -tune stillimage -preset ultrafast -b:v 500k -c:a libmp3lame -shortest -r 1 "%output_file%"
 		goto Prompt
 	)
+
+:reencodeAudio
+	echo.
+	echo Enter the input filename (with extension):
+	set /p input_file=
+
+
+	for %%a in ("%input_file%") do (
+			set name=%%~na
+			set ext=%%~xa
+		)
+
+
+	for %%b in (.mp4 .mkv .avi .mov .wmv .flv .m4v) do (
+		if /I "%ext%"=="%%b" set type=video
+	)
+
+	for %%b in (.mp3 .wav .flac .aac .ogg .m4a .wma) do (
+		if /I "%ext%"=="%%b" set type=audio
+	)
+	
+	echo Normalize audio? (y/n):
+	set /p normalize=
+	
+	if "%normalize%"=="y" (
+		ffmpeg -i %input_file% -c:a libmp3lame -af "loudnorm=I=-16:TP=-1.5:LRA=11" -b:a 128k %name%_reencoded_normalized%ext%
+	) else (
+		ffmpeg -i %input_file% -c:a libmp3lame -b:a 128k %name%_reencoded_normalized%ext%
+	)
+	
+	goto Prompt
+
 
 :trimSplitSwapFile
 	echo.
@@ -762,7 +798,7 @@ if "%key%"=="t" (
 	echo Formatted time: !endTime!
 	echo !type!
 	if "!type!"=="audio" (
-			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c copy %name%_portion%ext%
+			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c copy %name%_portion!counter!%ext%
 		)	else (
 			ffmpeg -i %input_file% -ss %beginningTime% -to %endTime% -c:v libx264 -preset ultrafast -c:a copy %name%_portion!counter!%ext%
 		)
