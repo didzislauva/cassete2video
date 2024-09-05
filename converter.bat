@@ -362,7 +362,7 @@ if "%key%"=="t" (
 	echo.
 	echo Enter the input filename (with extension):
 	set /p input_file=
-
+	set input_file=%input_file:"=%
 
 	for %%a in ("%input_file%") do (
 			set name=%%~na
@@ -384,7 +384,7 @@ if "%key%"=="t" (
 	if "%normalize%"=="y" (
 		ffmpeg -i %input_file% -c:a libmp3lame -af "loudnorm=I=-16:TP=-1.5:LRA=11" -b:a 128k %name%_reencoded_normalized%ext%
 	) else (
-		ffmpeg -i %input_file% -c:a libmp3lame -b:a 128k %name%_reencoded_normalized%ext%
+		ffmpeg -i %input_file% -c:a libmp3lame -b:a 128k %name%_reencoded%ext%
 	)
 	
 	goto Prompt
@@ -394,6 +394,7 @@ if "%key%"=="t" (
 	echo.
 	echo Enter the input filename (with extension):
 	set /p input_file=
+	set input_file=%input_file:"=%
 
 
 	for %%a in ("%input_file%") do (
@@ -636,6 +637,7 @@ if "%key%"=="t" (
 	:loopNAQ
 	echo Enter the input filename (with extension):
 	set /p input_file=
+	set input_file=%input_file:"=%
 	
 	:: Check if the image file exists
 	if not exist "%input_file%" (
