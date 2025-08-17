@@ -35,6 +35,7 @@ A versatile command-line tool for managing and processing media files using **FF
 ## Requirements
 
 - **Windows**: Supports Windows 7 and above (with ANSI color detection for enhanced visuals).
+- **Linux**: Supports Linux distributions which have shebang.
 - **FFmpeg**: Must be installed and accessible via the command line.
 - **Dependencies**: No additional dependencies.
 
