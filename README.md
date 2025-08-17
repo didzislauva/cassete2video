@@ -58,7 +58,7 @@ A versatile command-line tool for managing and processing media files using **FF
 2. Ensure FFmpeg is installed and available in your PATH.
 3. Run the script in the command line:
    ```cmd
-   script_name.bat
+   converter.bat
    ```
 4. Follow the on-screen instructions.
 
